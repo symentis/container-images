@@ -1,0 +1,28 @@
+# Note: While the ConfigManagementPlugin looks like a Kubernetes object, it is not actually a custom resource. It only follows kubernetes-style spec conventions.
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  # The name of the plugin must be unique within a given Argo CD instance.
+  name: nix
+spec:
+  # The init command runs in the Application source directory at the beginning of each manifest generation. The init
+  # command can output anything. A non-zero status code will fail manifest generation.
+  init:
+    # Init always happens immediately before generate, but its output is not treated as manifests.
+    # This is a good place to, for example, download chart dependencies.
+    command: ["true"]
+    args: []
+  # The generate command runs in the Application source directory each time manifests are generated. Standard output
+  # must be ONLY valid YAML manifests. A non-zero exit code will fail manifest generation.
+  # Error output will be sent to the UI, so avoid printing sensitive information (such as secrets).
+  generate:
+    command: [bash, -c]
+    args:
+      - |
+        set -uo pipefail
+        trap 's=$?; echo "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
+        IFS=$'\n\t'
+        echo "building .#$ARGOCD_ENV_flake_output" >&2
+        path=$(HOME=$(pwd) nix build ".#$ARGOCD_ENV_flake_output" --print-out-paths)
+        echo "got $path" >&2
+        cat "$path"
