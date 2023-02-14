@@ -1,0 +1,4 @@
+/.direnv
+/.images/*
+.DS_Store
+**/result
